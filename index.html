@@ -4,74 +4,110 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>員工資料管理系統</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root{--bg:#f4f6fa;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--primary:#2563eb;--danger:#dc2626;--ok:#16a34a}
+  #loginDlg{width:min(380px,94vw)}
+  #loginDlg form{padding:24px;gap:12px;display:flex;flex-direction:column}
+  #loginDlg h2{margin:0}
+  #loginErr{color:var(--danger);font-size:13px;min-height:18px}
+  header .right{display:flex;gap:10px;align-items:center;font-size:13px}
+  :root{--bg:#f4f6fa;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--primary:#2563eb;--danger:#dc2626;--ok:#16a34a;--warn:#b45309}
   *{box-sizing:border-box}
   body{margin:0;font-family:"Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
   header{background:var(--primary);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
   header h1{margin:0;font-size:20px}
-  main{max-width:1100px;margin:20px auto;padding:0 16px}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  main{max-width:1200px;margin:20px auto;padding:0 16px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
   .stat{background:var(--card);border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-  .stat b{display:block;font-size:24px;margin-top:4px}
+  .stat b{display:block;font-size:22px;margin-top:4px}
   .stat span{color:var(--muted);font-size:13px}
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
   input,select{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff}
-  .toolbar input{flex:1;min-width:180px}
+  .toolbar #search{flex:1;min-width:180px}
+  .toolbar label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
   button{padding:8px 14px;border:0;border-radius:6px;background:var(--primary);color:#fff;font:inherit;cursor:pointer}
   button.sec{background:#e5e7eb;color:var(--text)}
   button.del{background:var(--danger)}
   button.sm{padding:4px 10px;font-size:13px}
   .tablewrap{background:var(--card);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow-x:auto}
-  table{width:100%;border-collapse:collapse;min-width:1400px}
-  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+  table{width:100%;border-collapse:collapse;min-width:2400px}
+  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}
   th{background:#f9fafb;cursor:pointer;user-select:none;white-space:nowrap}
   tr:hover td{background:#f9fafb}
   .tag{padding:2px 8px;border-radius:99px;font-size:12px}
-  .t-on{background:#dcfce7;color:var(--ok)}.t-leave{background:#fef3c7;color:#b45309}.t-off{background:#fee2e2;color:var(--danger)}
+  .t-on{background:#dcfce7;color:var(--ok)}.t-leave{background:#fef3c7;color:var(--warn)}.t-off{background:#fee2e2;color:var(--danger)}
+  .warn{color:var(--warn);font-weight:bold}.bad{color:var(--danger);font-weight:bold}
   .empty{padding:30px;text-align:center;color:var(--muted)}
-  dialog{border:0;border-radius:12px;padding:24px;width:min(480px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  dialog{border:0;border-radius:12px;padding:0;width:min(720px,94vw);max-height:92vh;box-shadow:0 10px 40px rgba(0,0,0,.3)}
   dialog::backdrop{background:rgba(0,0,0,.4)}
-  dialog h2{margin-top:0}
+  dialog form{display:flex;flex-direction:column;max-height:92vh}
+  .dhead{padding:20px 24px 0}
+  .dhead h2{margin:0 0 10px}
+  .dbody{padding:14px 24px;overflow-y:auto;flex:1}
+  .tabs{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .tabs button{background:none;color:var(--muted);border-radius:6px 6px 0 0;padding:8px 12px;border-bottom:2px solid transparent}
+  .tabs button.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:bold}
+  .pane{display:none}.pane.on{display:block}
   .form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .form label{display:flex;flex-direction:column;font-size:13px;color:var(--muted);gap:4px}
   .form .full{grid-column:1/-1}
-  .bonus{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}
-  .brow{display:grid;grid-template-columns:120px 105px 1fr 90px auto;gap:6px;margin-bottom:6px}
-  .brow select{min-width:0;padding:8px 4px}
-  .brow input{min-width:0}
-  .hrow{display:grid;grid-template-columns:130px 1fr 1fr auto;gap:6px;margin-bottom:6px}
-  .hrow input{min-width:0}
-  .sum{grid-column:1/-1;background:#eff6ff;border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);line-height:1.7}
-  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .sec-t{display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px}
+  .sec-t:first-child{margin-top:0}
+  .sec-t b{font-size:14px}
+  .row{display:grid;gap:6px;margin-bottom:6px}
+  .row input,.row select{min-width:0}
+  .row select{padding:8px 4px}
+  .brow{grid-template-columns:120px 110px 1fr 90px auto}
+  .hrow{grid-template-columns:130px 1fr 1fr auto}
+  .arow{grid-template-columns:120px 90px 80px 1fr auto}
+  .rrow{grid-template-columns:120px 70px 1fr auto auto;margin-bottom:2px}
+  .hint{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
+  .sum{background:#eff6ff;border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);line-height:1.8;margin-top:10px}
+  .sum .r{display:flex;justify-content:space-between}
+  .sum .net{border-top:1px solid #bfdbfe;margin-top:4px;padding-top:4px;font-size:16px}
+  .actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 24px;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
 <header>
   <h1>👥 員工資料管理系統</h1>
-  <button id="addBtn">＋ 新增員工</button>
+  <div class="right">
+    <span id="userLbl"></span>
+    <button id="addBtn">＋ 新增員工</button>
+    <button class="sec" id="logoutBtn" hidden>登出</button>
+  </div>
 </header>
 <main>
   <div class="stats">
     <div class="stat"><span>員工總數</span><b id="sTotal">0</b></div>
     <div class="stat"><span>在職（新娘物語 / 成家婚顧）</span><b id="sActive">0</b></div>
-    <div class="stat"><span>平均月薪</span><b id="sAvg">0</b></div>
+    <div class="stat"><span>總薪資（總年薪加總）</span><b id="sAvg">0</b></div>
     <div class="stat"><span>部門數</span><b id="sDept">0</b></div>
+    <div class="stat"><span>30 天內試用/合約到期</span><b id="sExpire">0</b></div>
   </div>
   <div class="toolbar">
     <input id="search" placeholder="搜尋姓名、編號、職稱、Email…">
     <select id="fCompany"><option value="">兩家公司</option><option>新娘物語</option><option>成家婚顧</option></select>
     <select id="fDept"><option value="">全部部門</option></select>
     <select id="fStatus"><option value="">全部狀態</option><option>在職</option><option>留職停薪</option><option>離職</option></select>
+    <label>薪資月份 <input type="month" id="payMonth"></label>
     <button class="sec" id="exportBtn">匯出 CSV</button>
+    <button class="sec" id="jsonSave">儲存資料檔 (JSON)</button>
+    <button class="sec" id="jsonLoad">讀取資料檔</button>
+    <input type="file" id="jsonFile" accept=".json,application/json" hidden>
   </div>
   <div class="tablewrap">
     <table>
       <thead><tr>
-        <th data-k="company">公司 ⇅</th><th data-k="id">編號 ⇅</th><th data-k="name">姓名 ⇅</th><th data-k="dept">部門 ⇅</th><th data-k="moves">調動歷史 ⇅</th>
-        <th data-k="title">職稱 ⇅</th><th data-k="hire">到職日 ⇅</th><th data-k="leave">離職日 ⇅</th>
-        <th data-k="salary">月薪 ⇅</th><th data-k="regSum">定期業務獎金 ⇅</th><th data-k="irrSum">不定期獎金 ⇅</th><th data-k="annual">總年薪 ⇅</th>
-        <th data-k="status">狀態 ⇅</th><th>操作</th>
+        <th data-k="company">公司 ⇅</th><th data-k="id">編號 ⇅</th><th data-k="name">姓名 ⇅</th>
+        <th data-k="dept">部門 ⇅</th><th data-k="moves">調動歷史 ⇅</th><th data-k="title">職稱 ⇅</th>
+        <th data-k="empType">僱用類型 ⇅</th><th data-k="hire">到職日 ⇅</th><th data-k="leave">離職日 ⇅</th>
+        <th data-k="contractEnd">試用/合約到期 ⇅</th><th data-k="salary">月薪 ⇅</th>
+        <th data-k="regSum">定期業務獎金 ⇅</th><th data-k="irrSum">不定期獎金 ⇅</th><th data-k="annual">總年薪 ⇅</th>
+        <th data-k="netPay">當月實領 ⇅</th><th data-k="annualRemain">特休剩餘(天) ⇅</th>
+        <th data-k="leaveDays">累計請假(天) ⇅</th><th data-k="lateCnt">遲到(次) ⇅</th><th data-k="absentDays">曠職(天) ⇅</th>
+        <th data-k="lastScore">最近考核 ⇅</th><th data-k="status">狀態 ⇅</th><th>操作</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -79,43 +115,99 @@
   </div>
 </main>
 
+<dialog id="loginDlg">
+  <form id="loginForm">
+    <h2>登入</h2>
+    <input name="email" type="email" placeholder="Email" required autocomplete="username">
+    <input name="password" type="password" placeholder="密碼" required autocomplete="current-password">
+    <div id="loginErr"></div>
+    <button type="submit">登入</button>
+  </form>
+</dialog>
+
 <dialog id="dlg">
   <form method="dialog" id="form">
-    <h2 id="dlgTitle">新增員工</h2>
-    <div class="form">
-      <label class="full">所屬公司
-        <select name="company"><option>新娘物語</option><option>成家婚顧</option></select>
-      </label>
-      <label>員工編號<input name="id" required></label>
-      <label>姓名<input name="name" required></label>
-      <label>部門<input name="dept" list="deptList" required></label>
-      <label>職稱<input name="title" required></label>
-      <label>Email<input name="email" type="email"></label>
-      <label>電話<input name="phone"></label>
-      <label>到職日<input name="hire" type="date" required></label>
-      <label>月薪 (NT$)<input name="salary" type="number" min="0" required></label>
-      <label>離職日<input name="leave" type="date"></label>
-      <label>狀態
-        <select name="status"><option>在職</option><option>留職停薪</option><option>離職</option></select>
-      </label>
-      <div class="bonus">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <b style="font-size:14px">獎金紀錄（在職期間）</b>
-          <button type="button" class="sm sec" id="addBonus">＋ 新增獎金</button>
-        </div>
-        <div id="bonusList"></div>
+    <div class="dhead">
+      <h2 id="dlgTitle">新增員工</h2>
+      <div class="tabs" id="tabs">
+        <button type="button" data-tab="0" class="on">基本與任職</button>
+        <button type="button" data-tab="1">勞健保與薪資</button>
+        <button type="button" data-tab="2">獎金與考核</button>
+        <button type="button" data-tab="3">出勤與特休</button>
+        <button type="button" data-tab="4">調動歷史</button>
       </div>
-      <div class="bonus">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <b style="font-size:14px">部門調動歷史</b>
-          <button type="button" class="sm sec" id="addMove">＋ 新增調動</button>
-        </div>
-        <div id="moveList"></div>
-        <div style="font-size:12px;color:var(--muted)">修改上方「部門」欄位並儲存時，系統會自動補一筆調動紀錄。</div>
-      </div>
-      <div class="sum" id="sumBox"></div>
     </div>
-    <datalist id="deptList"></datalist>
+    <div class="dbody">
+      <!-- 0 基本與任職 -->
+      <div class="pane form on" data-pane="0">
+        <label class="full">所屬公司
+          <select name="company"><option>新娘物語</option><option>成家婚顧</option></select>
+        </label>
+        <label>員工編號<input name="id" readonly placeholder="儲存時自動產生"></label>
+        <label>姓名<input name="name" required></label>
+        <label>身分證字號<input name="idNo" maxlength="10"></label>
+        <label>生日<input name="birth" type="date"></label>
+        <label>性別<select name="gender"><option value="">—</option><option>女</option><option>男</option><option>其他</option></select></label>
+        <label>電話<input name="phone"></label>
+        <label class="full">地址<input name="address"></label>
+        <label class="full">Email<input name="email" type="email"></label>
+        <label>部門<input name="dept" list="deptList" required></label>
+        <label>職稱<input name="title" required></label>
+        <label>僱用類型<select name="empType"><option>正職</option><option>兼職</option><option>約聘</option></select></label>
+        <label>狀態<select name="status"><option>在職</option><option>留職停薪</option><option>離職</option></select></label>
+        <label>到職日<input name="hire" type="date" required></label>
+        <label>離職日<input name="leave" type="date"></label>
+        <label>試用期到期日<input name="probEnd" type="date"></label>
+        <label>合約到期日<input name="contractEnd" type="date"></label>
+        <label class="full">月薪 (NT$)<input name="salary" type="number" min="0" required></label>
+        <datalist id="deptList"></datalist>
+      </div>
+
+      <!-- 1 勞健保與薪資 -->
+      <div class="pane form" data-pane="1">
+        <label>投保薪資 (NT$)<input name="insSalary" type="number" min="0"></label>
+        <label>健保眷屬人數（最多計 3 人）<input name="dependents" type="number" min="0" value="0"></label>
+        <label>投保日期<input name="insDate" type="date"></label>
+        <label>退保日期<input name="insEnd" type="date"></label>
+        <div class="full"><button type="button" class="sm sec" id="autoIns">依投保薪資自動試算保費</button>
+          <span class="hint">概算：勞保(含就保) 12.5%×員工 20%；健保 5.17%×員工 30%×(本人+眷屬)；勞退雇主 6%。實際金額以投保級距與最新費率為準，可手動修改。</span></div>
+        <label>勞保費（員工自付／月）<input name="laborIns" type="number" min="0"></label>
+        <label>健保費（員工自付／月）<input name="healthIns" type="number" min="0"></label>
+        <label>勞退提繳（雇主／月）<input name="pensionEmployer" type="number" min="0"></label>
+        <label>勞退自提（員工／月）<input name="pensionSelf" type="number" min="0"></label>
+        <label class="full">每月所得稅扣繳 (NT$)<input name="tax" type="number" min="0"></label>
+        <div class="full">
+          <div class="sec-t"><b>實領薪資試算</b><span class="hint" id="payMonthLbl"></span></div>
+          <div class="sum" id="payBox"></div>
+          <div class="note">試算月份跟隨頁面上方的「薪資月份」。請假扣薪：事假扣全薪、病假扣半薪、特休不扣；曠職扣全薪；遲到依分鐘數比例扣。日薪＝月薪÷30，時薪＝日薪÷8。</div>
+        </div>
+      </div>
+
+      <!-- 2 獎金與考核 -->
+      <div class="pane" data-pane="2">
+        <div class="sec-t"><b>獎金紀錄（在職期間）</b><button type="button" class="sm sec" id="addBonus">＋ 新增獎金</button></div>
+        <div id="bonusList"></div>
+        <div class="sum" id="sumBox"></div>
+        <div class="sec-t" style="margin-top:22px"><b>績效考核</b><button type="button" class="sm sec" id="addRev">＋ 新增考核</button></div>
+        <div id="revList"></div>
+        <div class="note">年終獎金建議規則：90 分以上 2 個月、80–89 分 1.5 個月、70–79 分 1 個月、60–69 分 0.5 個月、未滿 60 分 0。按「帶入年終」會把金額加入上方獎金紀錄（不定期獎金）。</div>
+      </div>
+
+      <!-- 3 出勤與特休 -->
+      <div class="pane" data-pane="3">
+        <div class="sec-t"><b>出勤紀錄</b><button type="button" class="sm sec" id="addAtt">＋ 新增紀錄</button></div>
+        <div id="attList"></div>
+        <div class="note">特休、事假、病假、曠職填「天數」（可填 0.5）；遲到填「分鐘」，每筆算 1 次。</div>
+        <div class="sum" id="attSum"></div>
+      </div>
+
+      <!-- 4 調動歷史 -->
+      <div class="pane" data-pane="4">
+        <div class="sec-t"><b>部門調動歷史</b><button type="button" class="sm sec" id="addMove">＋ 新增調動</button></div>
+        <div id="moveList"></div>
+        <div class="note">修改「基本與任職」的部門並儲存時，系統會自動補一筆調動紀錄。</div>
+      </div>
+    </div>
     <div class="actions">
       <button type="button" class="sec" id="cancel">取消</button>
       <button type="submit">儲存</button>
@@ -124,31 +216,173 @@
 </dialog>
 
 <script>
-const KEY = 'hr_employees_v1';
+const SUPABASE_URL = 'https://orvhweqyemazbeuuldtt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zJ7IBikVIFhqyP4jIRlL9g_78TCvFFI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const seed = [
-  {company:'新娘物語',id:'E001',name:'王小明',dept:'工程部',title:'資深工程師',email:'ming@example.com',phone:'0912-345-678',hire:'2019-03-01',salary:85000,status:'在職',history:[{date:'2021-04-01',from:'業務部',to:'工程部'}]},
-  {company:'成家婚顧',id:'E002',name:'李美玲',dept:'人資部',title:'人資經理',email:'meiling@example.com',phone:'0922-111-222',hire:'2018-07-15',salary:92000,status:'在職'},
-  {company:'新娘物語',id:'E003',name:'陳志豪',dept:'業務部',title:'業務專員',email:'chihao@example.com',phone:'0933-222-333',hire:'2021-01-10',salary:52000,status:'在職',bonuses:[{date:'2025-03-31',type:'定期業務獎金',name:'Q1 業績獎金',amount:30000},{date:'2025-06-30',type:'定期業務獎金',name:'Q2 業績獎金',amount:36000},{date:'2025-02-10',type:'不定期獎金',name:'專案獎金',amount:20000}]},
-  {company:'成家婚顧',id:'E004',name:'林雅婷',dept:'財務部',title:'會計',email:'yating@example.com',phone:'0955-666-777',hire:'2020-05-20',salary:58000,status:'留職停薪'},
-  {company:'成家婚顧',id:'E005',name:'張家豪',dept:'工程部',title:'前端工程師',email:'chiahao@example.com',phone:'0966-888-999',hire:'2022-09-01',leave:'2025-06-30',salary:70000,status:'離職',bonuses:[{date:'2023-01-20',type:'不定期獎金',name:'年終獎金',amount:70000},{date:'2024-01-20',type:'不定期獎金',name:'年終獎金',amount:105000}]}
+  {company:'新娘物語',id:'E001',name:'王小明',idNo:'A123456789',birth:'1990-05-12',gender:'男',address:'台北市信義區信義路 1 號',dept:'工程部',title:'資深工程師',empType:'正職',email:'ming@example.com',phone:'0912-345-678',hire:'2019-03-01',salary:85000,status:'在職',
+   insSalary:87600,dependents:1,insDate:'2019-03-01',laborIns:2190,healthIns:2711,pensionEmployer:5256,pensionSelf:0,tax:3200,
+   history:[{date:'2021-04-01',from:'業務部',to:'工程部'}],
+   attendance:[{date:'2026-03-10',type:'特休',qty:2,note:''},{date:'2026-08-20',type:'特休',qty:1,note:''}],
+   reviews:[{date:'2026-01-15',score:92,comment:'表現優異'}]},
+  {company:'成家婚顧',id:'E002',name:'李美玲',idNo:'B223456781',birth:'1988-11-03',gender:'女',address:'台中市西屯區文心路 88 號',dept:'人資部',title:'人資經理',empType:'正職',email:'meiling@example.com',phone:'0922-111-222',hire:'2018-07-15',salary:92000,status:'在職',
+   insSalary:92100,dependents:0,insDate:'2018-07-15',laborIns:2303,healthIns:1428,pensionEmployer:5526,pensionSelf:0,tax:4100,
+   reviews:[{date:'2026-01-15',score:85,comment:'穩定'}]},
+  {company:'新娘物語',id:'E003',name:'陳志豪',idNo:'C123456780',birth:'1995-02-20',gender:'男',address:'新北市板橋區文化路 5 號',dept:'業務部',title:'業務專員',empType:'正職',email:'chihao@example.com',phone:'0933-222-333',hire:'2021-01-10',salary:52000,status:'在職',
+   probEnd:'2021-04-10',contractEnd:'2026-10-05',
+   insSalary:53000,dependents:0,insDate:'2021-01-10',laborIns:1325,healthIns:822,pensionEmployer:3180,pensionSelf:0,tax:0,
+   bonuses:[{date:'2026-03-31',type:'定期業務獎金',name:'Q1 業績獎金',amount:30000},{date:'2026-06-30',type:'定期業務獎金',name:'Q2 業績獎金',amount:36000},{date:'2026-02-10',type:'不定期獎金',name:'專案獎金',amount:20000}],
+   attendance:[{date:'2026-03-05',type:'病假',qty:1,note:''},{date:'2026-09-11',type:'事假',qty:0.5,note:''},{date:'2026-09-02',type:'遲到',qty:15,note:''},{date:'2026-06-18',type:'曠職',qty:1,note:''}],
+   reviews:[{date:'2026-01-15',score:74,comment:'需加強開發客戶'}]},
+  {company:'成家婚顧',id:'E004',name:'林雅婷',dept:'財務部',title:'會計',empType:'約聘',email:'yating@example.com',phone:'0955-666-777',hire:'2020-05-20',salary:58000,status:'留職停薪',contractEnd:'2026-12-31'},
+  {company:'成家婚顧',id:'E005',name:'張家豪',dept:'工程部',title:'前端工程師',empType:'正職',email:'chiahao@example.com',phone:'0966-888-999',hire:'2022-09-01',leave:'2025-06-30',insEnd:'2025-06-30',salary:70000,status:'離職',bonuses:[{date:'2023-01-20',type:'不定期獎金',name:'年終獎金',amount:70000},{date:'2024-01-20',type:'不定期獎金',name:'年終獎金',amount:105000}]}
 ];
-let data = load(), sortKey='id', sortDir=1, editing=null, draft=[], hdraft=[];
+let data = [], sortKey='id', sortDir=1, editing=null, draft=[], hdraft=[], adraft=[], rdraft=[];
 const $ = s => document.querySelector(s);
-const bonusOf = e => (e.bonuses||[]).reduce((a,b)=>a+(Number(b.amount)||0),0);
-const sumType = (list,reg) => (list||[]).filter(b=>(b.type==='定期業務獎金')===reg).reduce((a,b)=>a+(Number(b.amount)||0),0);
-const view = e => ({...e, company:e.company||'未指定', regSum:sumType(e.bonuses,true), irrSum:sumType(e.bonuses,false), history:(e.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)), moves:(e.history||[]).length, leave:e.leave||'', bonusSum:bonusOf(e), annual:Number(e.salary)*12+bonusOf(e)});
-const money = n => Number(n).toLocaleString();
-
-function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || seed }catch{ return seed } }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(data)) }catch{} }
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => Math.round(Number(n)||0).toLocaleString();
+const pad = n => String(n).padStart(2,'0');
+const today = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const curMonth = () => $('#payMonth').value || today().slice(0,7);
 const tagCls = {'在職':'t-on','留職停薪':'t-leave','離職':'t-off'};
+const num = v => Number(v)||0;
 
+/* ---------- Supabase 資料存取 ---------- */
+const COLS = {idNo:'id_no',empType:'emp_type',probEnd:'prob_end',contractEnd:'contract_end',insSalary:'ins_salary',
+  insDate:'ins_date',insEnd:'ins_end',laborIns:'labor_ins',healthIns:'health_ins',pensionEmployer:'pension_employer',pensionSelf:'pension_self'};
+const DATE_FIELDS = ['birth','hire','leave','probEnd','contractEnd','insDate','insEnd'];
+const JSON_FIELDS = ['bonuses','attendance','reviews','history'];
+const KEYS = ['id','company','name','idNo','birth','gender','phone','address','email','dept','title','empType','status','hire','leave',
+  'probEnd','contractEnd','salary','insSalary','dependents','insDate','insEnd','laborIns','healthIns','pensionEmployer','pensionSelf','tax',...JSON_FIELDS];
+function toRow(e){
+  const r = {};
+  KEYS.forEach(k=>{
+    let v = e[k];
+    if(DATE_FIELDS.includes(k) || ['idNo','gender','phone','address','email'].includes(k)) v = v || null;
+    if(JSON_FIELDS.includes(k)) v = v || [];
+    r[COLS[k]||k] = v;
+  });
+  r.updated_at = new Date().toISOString();
+  return r;
+}
+function fromRow(r){
+  const e = {};
+  KEYS.forEach(k=>{
+    const v = r[COLS[k]||k];
+    if(v!==null && v!==undefined) e[k] = v;
+  });
+  return e;
+}
+async function loadData(){
+  const {data:rows, error} = await sb.from('employees').select('*').order('id');
+  if(error){ alert('讀取資料失敗：'+error.message); return; }
+  data = rows.map(fromRow); render();
+}
+async function dbInsert(emp){
+  const row = toRow(emp); delete row.id;   // 編號交給資料庫自動產生
+  const {data:r, error} = await sb.from('employees').insert(row).select().single();
+  if(error){ alert('新增失敗：'+error.message); return null; }
+  return fromRow(r);
+}
+async function dbUpsert(list){
+  const {error} = await sb.from('employees').upsert(list.map(toRow));
+  if(error){ alert('儲存失敗：'+error.message); return false; }
+  return true;
+}
+async function dbDelete(id){
+  const {error} = await sb.from('employees').delete().eq('id', id);
+  if(error){ alert('刪除失敗：'+error.message); return false; }
+  return true;
+}
+
+/* ---------- 計算 ---------- */
+const bonusOf = e => (e.bonuses||[]).reduce((a,b)=>a+num(b.amount),0);
+const sumType = (list,reg) => (list||[]).filter(b=>(b.type==='定期業務獎金')===reg).reduce((a,b)=>a+num(b.amount),0);
+const normType = t => t==='請假' ? '事假' : t;
+
+function attStat(list){
+  const r = {leave:0, late:0, lateMin:0, absent:0};
+  (list||[]).forEach(a=>{
+    const q = num(a.qty), t = normType(a.type);
+    if(t==='特休'||t==='事假'||t==='病假') r.leave+=q;
+    else if(t==='遲到'){ r.late++; r.lateMin+=q; }
+    else if(t==='曠職') r.absent+=q;
+  });
+  return r;
+}
+function addMonths(ds,m){
+  const [y,mo,d]=ds.split('-').map(Number);
+  const first=new Date(Date.UTC(y,mo-1+m,1));
+  const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+  return `${first.getUTCFullYear()}-${pad(first.getUTCMonth()+1)}-${pad(Math.min(d,last))}`;
+}
+/* 特休：勞基法第 38 條，週年制 */
+function leaveInfo(e){
+  if(!e.hire) return null;
+  const t=today(), asOf=(e.leave&&e.leave<t)?e.leave:t;
+  const [hy,hm,hd]=e.hire.split('-').map(Number), [ay,am,ad]=asOf.split('-').map(Number);
+  const months=(ay-hy)*12+(am-hm)-(ad<hd?1:0);
+  const info={months,entitle:0,used:0,remain:0,start:'',end:''};
+  if(months<6) return info;
+  const years=Math.floor(months/12);
+  if(years<1){ info.entitle=3; info.start=addMonths(e.hire,6); info.end=addMonths(e.hire,12); }
+  else{
+    info.entitle = years===1?7 : years===2?10 : years<5?14 : years<10?15 : Math.min(30,15+years-9);
+    info.start=addMonths(e.hire,years*12); info.end=addMonths(e.hire,(years+1)*12);
+  }
+  info.used=(e.attendance||[]).filter(a=>normType(a.type)==='特休'&&a.date>=info.start&&a.date<info.end).reduce((s,a)=>s+num(a.qty),0);
+  info.remain=info.entitle-info.used;
+  return info;
+}
+const seniority = m => m<0 ? '尚未到職' : `${Math.floor(m/12)} 年 ${m%12} 個月`;
+/* 單月實領 */
+function payroll(e, ym){
+  const sal=num(e.salary), daily=sal/30, hourly=daily/8;
+  const active = !(e.hire && ym < e.hire.slice(0,7)) && !(e.leave && ym > e.leave.slice(0,7));
+  const inM = d => String(d||'').startsWith(ym);
+  let reg=0, irr=0, leaveD=0, sickD=0, absD=0, lateD=0;
+  (e.bonuses||[]).forEach(b=>{ if(inM(b.date)){ if(b.type==='定期業務獎金') reg+=num(b.amount); else irr+=num(b.amount); }});
+  (e.attendance||[]).forEach(a=>{
+    if(!inM(a.date)) return;
+    const q=num(a.qty);
+    switch(normType(a.type)){
+      case '事假': leaveD+=daily*q; break;
+      case '病假': sickD+=daily*q*0.5; break;
+      case '曠職': absD+=daily*q; break;
+      case '遲到': lateD+=hourly/60*q; break;
+    }
+  });
+  const p = {active, sal, reg, irr, gross:sal+reg+irr, labor:num(e.laborIns), health:num(e.healthIns),
+    pen:num(e.pensionSelf), tax:num(e.tax), leaveD:Math.round(leaveD), sickD:Math.round(sickD), absD:Math.round(absD), lateD:Math.round(lateD)};
+  p.net = p.gross - p.labor - p.health - p.pen - p.tax - p.leaveD - p.sickD - p.absD - p.lateD;
+  return p;
+}
+const scoreMonths = s => s>=90?2 : s>=80?1.5 : s>=70?1 : s>=60?0.5 : 0;
+const daysTo = ds => Math.round((new Date(ds)-new Date(today()))/864e5);
+
+const view = e => {
+  const s=attStat(e.attendance), li=leaveInfo(e), p=payroll(e,curMonth());
+  const revs=(e.reviews||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return {...e, company:e.company||'未指定', empType:e.empType||'正職',
+    leaveDays:s.leave, lateCnt:s.late, lateMin:s.lateMin, absentDays:s.absent,
+    regSum:sumType(e.bonuses,true), irrSum:sumType(e.bonuses,false),
+    history:(e.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)), moves:(e.history||[]).length,
+    leave:e.leave||'', contractEnd:e.contractEnd||'', probEnd:e.probEnd||'',
+    annual:num(e.salary)*12+bonusOf(e), netPay:p.active?p.net:0, payActive:p.active,
+    annualEntitle:li?li.entitle:0, annualUsed:li?li.used:0, annualRemain:li?li.remain:0,
+    lastScore:revs[0]?num(revs[0].score):-1};
+};
+const expCell = e => [['試用',e.probEnd],['合約',e.contractEnd]].filter(x=>x[1]).map(([l,d])=>{
+  const n=daysTo(d), c = e.status==='離職' ? '' : n<0?(l==='合約'?'bad':''):n<=30?'warn':'';
+  return `<span class="${c}">${l} ${esc(d)}${c==='bad'?'（已到期）':''}</span>`;
+}).join('<br>') || '—';
+
+/* ---------- 表格 ---------- */
 function render(){
   const q = $('#search').value.trim().toLowerCase(), d = $('#fDept').value, s = $('#fStatus').value, c = $('#fCompany').value;
   let rows = data.map(view).filter(e =>
     (!c || e.company===c) && (!d || e.dept===d) && (!s || e.status===s) &&
-    (!q || [e.id,e.name,e.title,e.email,e.dept].some(v => String(v||'').toLowerCase().includes(q))));
+    (!q || [e.id,e.name,e.title,e.email,e.dept,e.phone].some(v => String(v||'').toLowerCase().includes(q))));
   rows.sort((a,b)=>{
     const x=a[sortKey], y=b[sortKey];
     return (typeof x==='number' ? x-y : String(x).localeCompare(String(y),'zh-Hant')) * sortDir;
@@ -156,110 +390,275 @@ function render(){
   $('#tbody').innerHTML = rows.map(e=>`<tr>
     <td>${esc(e.company)}</td><td>${esc(e.id)}</td><td>${esc(e.name)}</td><td>${esc(e.dept)}</td>
     <td style="font-size:12px;color:var(--muted)">${e.history.length ? e.history.map(h=>`${esc(h.date)} ${esc(h.from)}→${esc(h.to)}`).join('<br>') : '—'}</td>
-    <td>${esc(e.title)}</td>
-    <td>${esc(e.hire)}</td><td>${esc(e.leave)||'—'}</td><td>${money(e.salary)}</td>
-    <td>${money(e.regSum)}</td><td>${money(e.irrSum)}</td><td><b>${money(e.annual)}</b></td>
+    <td>${esc(e.title)}</td><td>${esc(e.empType)}</td>
+    <td>${esc(e.hire)}</td><td>${esc(e.leave)||'—'}</td><td>${expCell(e)}</td>
+    <td>${money(e.salary)}</td><td>${money(e.regSum)}</td><td>${money(e.irrSum)}</td><td><b>${money(e.annual)}</b></td>
+    <td>${e.payActive ? '<b>'+money(e.netPay)+'</b>' : '—'}</td>
+    <td class="${e.annualRemain<0?'bad':''}" title="應有 ${e.annualEntitle} 天、已休 ${e.annualUsed} 天">${e.annualRemain}</td>
+    <td>${e.leaveDays}</td><td title="累計 ${e.lateMin} 分鐘">${e.lateCnt}</td>
+    <td class="${e.absentDays?'bad':''}">${e.absentDays}</td>
+    <td>${e.lastScore<0?'—':e.lastScore}</td>
     <td><span class="tag ${tagCls[e.status]}">${esc(e.status)}</span></td>
-    <td><button class="sm" data-edit="${esc(e.id)}">編輯</button>
+    <td style="white-space:nowrap"><button class="sm" data-edit="${esc(e.id)}">編輯</button>
         <button class="sm del" data-del="${esc(e.id)}">刪除</button></td></tr>`).join('');
   $('#empty').hidden = rows.length>0;
 
-  const depts = [...new Set(data.map(e=>e.dept))].sort();
+  const depts = [...new Set(data.map(e=>e.dept).filter(Boolean))].sort();
   const cur = $('#fDept').value;
   $('#fDept').innerHTML = '<option value="">全部部門</option>' + depts.map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
   $('#deptList').innerHTML = depts.map(x=>`<option value="${esc(x)}">`).join('');
 
-  const active = data.filter(e=>e.status==='在職');
-  $('#sTotal').textContent = data.length;
+  const all = data.map(view), active = all.filter(e=>e.status==='在職');
   const n = c => active.filter(e=>e.company===c).length;
+  $('#sTotal').textContent = data.length;
   $('#sActive').textContent = `${active.length}（${n('新娘物語')} / ${n('成家婚顧')}）`;
-  $('#sAvg').textContent = active.length ? 'NT$ '+Math.round(active.reduce((a,e)=>a+Number(e.salary),0)/active.length).toLocaleString() : '—';
+  $('#sAvg').textContent = 'NT$ '+money(all.reduce((a,e)=>a+e.annual,0));
   $('#sDept').textContent = depts.length;
+  $('#sExpire').textContent = active.filter(e=>[e.probEnd,e.contractEnd].some(d=>d && daysTo(d)>=0 && daysTo(d)<=30)).length;
 }
 
-function openForm(emp){
-  editing = emp ? emp.id : null;
-  $('#dlgTitle').textContent = emp ? '編輯員工' : '新增員工';
-  const f = $('#form'); f.reset();
-  if(emp){ for(const k in emp) if(f.elements[k]) f.elements[k].value = emp[k]; }
-  else f.elements.hire.value = new Date().toISOString().slice(0,10);
-  draft = emp ? (emp.bonuses||[]).map(b=>({...b})) : [];
-  hdraft = emp ? (emp.history||[]).map(h=>({...h})) : [];
-  renderBonus(); renderMoves();
-  $('#dlg').showModal();
+/* ---------- 編輯視窗 ---------- */
+const F = () => $('#form').elements;
+const NUM_FIELDS = ['salary','insSalary','dependents','laborIns','healthIns','pensionEmployer','pensionSelf','tax'];
+
+function showTab(i){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.tab==i));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on', p.dataset.pane==i));
 }
-function renderMoves(){
-  $('#moveList').innerHTML = hdraft.map((h,i)=>`<div class="hrow">
-    <input type="date" value="${esc(h.date)}" data-i="${i}" data-f="date">
-    <input placeholder="原部門" list="deptList" value="${esc(h.from)}" data-i="${i}" data-f="from">
-    <input placeholder="新部門" list="deptList" value="${esc(h.to)}" data-i="${i}" data-f="to">
-    <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
+$('#tabs').onclick = ev=>{ const b=ev.target.closest('button'); if(b) showTab(b.dataset.tab); };
+$('#form').addEventListener('invalid', ()=>showTab(0), true);
+
+function draftEmp(){
+  const f=F();
+  return {salary:f.salary.value, hire:f.hire.value, leave:f.leave.value, laborIns:f.laborIns.value, healthIns:f.healthIns.value,
+    pensionSelf:f.pensionSelf.value, tax:f.tax.value, bonuses:draft, attendance:adraft};
 }
-$('#addMove').onclick = ()=>{ hdraft.push({date:new Date().toISOString().slice(0,10),from:'',to:''}); renderMoves(); };
-$('#moveList').addEventListener('input', ev=>{ const t=ev.target; if(t.dataset.i!=null) hdraft[t.dataset.i][t.dataset.f]=t.value; });
-$('#moveList').addEventListener('click', ev=>{
-  const b=ev.target.closest('[data-rm]'); if(!b) return;
-  hdraft.splice(+b.dataset.rm,1); renderMoves();
-});
+function refreshAll(){
+  const e=draftEmp(), f=F();
+  // 獎金
+  const reg=sumType(draft,true), irr=sumType(draft,false), sal=num(f.salary.value);
+  $('#sumBox').innerHTML = `<div class="r"><span>年薪基本 (月薪×12)</span><span>NT$ ${money(sal*12)}</span></div>
+    <div class="r"><span>定期業務獎金</span><span>NT$ ${money(reg)}</span></div>
+    <div class="r"><span>不定期獎金</span><span>NT$ ${money(irr)}</span></div>
+    <div class="r net"><b>最終總年薪</b><b>NT$ ${money(sal*12+reg+irr)}</b></div>`;
+  // 實領
+  const ym=curMonth(), p=payroll(e,ym);
+  $('#payMonthLbl').textContent = `試算月份：${ym}`;
+  const line=(l,v,neg)=>v||l==='月薪'?`<div class="r"><span>${l}</span><span>${neg?'− ':''}NT$ ${money(v)}</span></div>`:'';
+  $('#payBox').innerHTML = !p.active ? '該月份不在職期間（早於到職或晚於離職月份）' :
+    line('月薪',p.sal)+line('＋ 定期業務獎金（當月）',p.reg)+line('＋ 不定期獎金（當月）',p.irr)+
+    `<div class="r"><span>應發合計</span><span>NT$ ${money(p.gross)}</span></div>`+
+    line('勞保費',p.labor,1)+line('健保費',p.health,1)+line('勞退自提',p.pen,1)+line('所得稅',p.tax,1)+
+    line('事假扣薪',p.leaveD,1)+line('病假扣薪（半薪）',p.sickD,1)+line('曠職扣薪',p.absD,1)+line('遲到扣薪',p.lateD,1)+
+    `<div class="r net"><b>實領薪資</b><b>NT$ ${money(p.net)}</b></div>`;
+  // 出勤與特休
+  const s=attStat(adraft), li=leaveInfo({hire:f.hire.value, leave:f.leave.value, attendance:adraft});
+  let leaveTxt='請先在「基本與任職」填寫到職日';
+  if(li) leaveTxt = li.entitle===0
+    ? `年資 ${seniority(li.months)}，未滿 6 個月，尚無特休`
+    : `年資 ${seniority(li.months)}　本期（${li.start} ～ ${li.end}）<br>應有特休 <b>${li.entitle}</b> 天　已休 <b>${li.used}</b> 天　剩餘 <b class="${li.remain<0?'bad':''}">${li.remain}</b> 天`;
+  $('#attSum').innerHTML = `累計請假（特休＋事假＋病假）：<b>${s.leave}</b> 天　遲到：<b>${s.late}</b> 次（共 ${s.lateMin} 分鐘）　曠職：<b>${s.absent}</b> 天<br>${leaveTxt}`;
+}
+$('#form').addEventListener('input', refreshAll);
+$('#payMonth').addEventListener('input', ()=>{ render(); if($('#dlg').open) refreshAll(); });
+
 function renderBonus(){
-  $('#bonusList').innerHTML = draft.map((b,i)=>`<div class="brow">
+  $('#bonusList').innerHTML = draft.map((b,i)=>`<div class="row brow">
     <input type="date" value="${esc(b.date)}" data-i="${i}" data-f="date">
     <select data-i="${i}" data-f="type"><option ${b.type==='定期業務獎金'?'selected':''}>定期業務獎金</option><option ${b.type!=='定期業務獎金'?'selected':''}>不定期獎金</option></select>
     <input placeholder="名稱（如年終、季獎）" value="${esc(b.name)}" data-i="${i}" data-f="name">
     <input type="number" min="0" placeholder="金額" value="${esc(b.amount)}" data-i="${i}" data-f="amount">
     <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
-  updateSum();
+  refreshAll();
 }
-function updateSum(){
-  const f = $('#form').elements, salary = Number(f.salary.value)||0;
-  const reg = sumType(draft,true), irr = sumType(draft,false), bonus = reg+irr;
-  $('#sumBox').innerHTML = `年薪基本 (月薪×12)：NT$ ${money(salary*12)}<br>定期業務獎金：NT$ ${money(reg)}<br>不定期獎金：NT$ ${money(irr)}<br><b>最終總年薪：NT$ ${money(salary*12+bonus)}</b>`;
+function renderMoves(){
+  $('#moveList').innerHTML = hdraft.map((h,i)=>`<div class="row hrow">
+    <input type="date" value="${esc(h.date)}" data-i="${i}" data-f="date">
+    <input placeholder="原部門" list="deptList" value="${esc(h.from)}" data-i="${i}" data-f="from">
+    <input placeholder="新部門" list="deptList" value="${esc(h.to)}" data-i="${i}" data-f="to">
+    <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
 }
-$('#addBonus').onclick = ()=>{ draft.push({date:new Date().toISOString().slice(0,10),type:'不定期獎金',name:'',amount:''}); renderBonus(); };
-$('#bonusList').addEventListener('input', ev=>{
-  const t=ev.target; if(t.dataset.i==null) return;
-  draft[t.dataset.i][t.dataset.f]=t.value; updateSum();
+function renderAtt(){
+  $('#attList').innerHTML = adraft.map((a,i)=>`<div class="row arow">
+    <input type="date" value="${esc(a.date)}" data-i="${i}" data-f="date">
+    <select data-i="${i}" data-f="type">${['特休','事假','病假','遲到','曠職'].map(t=>`<option ${a.type===t?'selected':''}>${t}</option>`).join('')}</select>
+    <input type="number" min="0" step="0.5" placeholder="${a.type==='遲到'?'分鐘':'天數'}" value="${esc(a.qty)}" data-i="${i}" data-f="qty">
+    <input placeholder="備註" value="${esc(a.note)}" data-i="${i}" data-f="note">
+    <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
+  refreshAll();
+}
+const hintText = sc => {
+  if(sc===''||sc==null) return '';
+  const m=scoreMonths(num(sc));
+  return `建議年終：${m} 個月 × 月薪 = NT$ ${money(num(F().salary.value)*m)}`;
+};
+function renderRev(){
+  $('#revList').innerHTML = rdraft.map((r,i)=>`<div class="row rrow">
+    <input type="date" value="${esc(r.date)}" data-i="${i}" data-f="date">
+    <input type="number" min="0" max="100" placeholder="分數" value="${esc(r.score)}" data-i="${i}" data-f="score">
+    <input placeholder="評語" value="${esc(r.comment)}" data-i="${i}" data-f="comment">
+    <button type="button" class="sm" data-apply="${i}">帶入年終</button>
+    <button type="button" class="sm del" data-rm="${i}">✕</button></div>
+    <div class="hint" id="hint${i}">${hintText(r.score)}</div>`).join('');
+}
+function bindList(sel, get, rerender, after){
+  const el=$(sel);
+  el.addEventListener('input', ev=>{
+    const t=ev.target; if(t.dataset.i==null) return;
+    get()[t.dataset.i][t.dataset.f]=t.value; if(after) after(t);
+  });
+  el.addEventListener('click', ev=>{
+    const b=ev.target.closest('[data-rm]'); if(!b) return;
+    get().splice(+b.dataset.rm,1); rerender();
+  });
+}
+bindList('#bonusList', ()=>draft, renderBonus);
+bindList('#moveList', ()=>hdraft, renderMoves);
+bindList('#attList', ()=>adraft, renderAtt, t=>{ if(t.dataset.f==='type') renderAtt(); });
+bindList('#revList', ()=>rdraft, ()=>{ renderRev(); }, t=>{ if(t.dataset.f==='score') $('#hint'+t.dataset.i).textContent=hintText(t.value); });
+$('#revList').addEventListener('click', ev=>{
+  const b=ev.target.closest('[data-apply]'); if(!b) return;
+  const r=rdraft[+b.dataset.apply];
+  if(r.score===''||!r.date){ alert('請先填考核日期與分數'); return; }
+  const m=scoreMonths(num(r.score)), amt=Math.round(num(F().salary.value)*m), name=`年終獎金（考核 ${r.date}）`;
+  const ex=draft.find(x=>x.name===name);
+  if(ex){ ex.amount=amt; ex.type='不定期獎金'; } else draft.push({date:today(),type:'不定期獎金',name,amount:amt});
+  renderBonus();
+  alert(`已帶入不定期獎金「${name}」NT$ ${money(amt)}，可在上方獎金紀錄調整日期與金額。`);
 });
-$('#bonusList').addEventListener('click', ev=>{
-  const b=ev.target.closest('[data-rm]'); if(!b) return;
-  draft.splice(+b.dataset.rm,1); renderBonus();
-});
-$('#form').elements.salary.addEventListener('input', updateSum);
+$('#addBonus').onclick = ()=>{ draft.push({date:today(),type:'不定期獎金',name:'',amount:''}); renderBonus(); };
+$('#addMove').onclick = ()=>{ hdraft.push({date:today(),from:'',to:''}); renderMoves(); };
+$('#addAtt').onclick = ()=>{ adraft.push({date:today(),type:'事假',qty:'',note:''}); renderAtt(); };
+$('#addRev').onclick = ()=>{ rdraft.push({date:today(),score:'',comment:''}); renderRev(); };
+$('#autoIns').onclick = ()=>{
+  const f=F(), s=num(f.insSalary.value);
+  if(!s){ alert('請先輸入投保薪資'); return; }
+  const dep=Math.min(num(f.dependents.value),3);
+  f.laborIns.value=Math.round(s*0.125*0.2);
+  f.healthIns.value=Math.round(s*0.0517*0.3*(1+dep));
+  f.pensionEmployer.value=Math.round(s*0.06);
+  refreshAll();
+};
+
+function openForm(emp){
+  editing = emp ? emp.id : null;
+  $('#dlgTitle').textContent = emp ? '編輯員工' : '新增員工';
+  const f=$('#form'); f.reset(); showTab(0);
+  if(emp){ for(const k in emp) if(f.elements[k] && typeof emp[k]!=='object') f.elements[k].value = emp[k]; }
+  else f.elements.hire.value = today();
+  const cp = a => (a||[]).map(x=>({...x}));
+  draft=cp(emp&&emp.bonuses); hdraft=cp(emp&&emp.history); rdraft=cp(emp&&emp.reviews);
+  adraft=cp(emp&&emp.attendance).map(a=>({...a,type:normType(a.type)}));
+  renderBonus(); renderMoves(); renderAtt(); renderRev();
+  $('#dlg').showModal();
+}
 
 $('#addBtn').onclick = () => openForm();
 $('#cancel').onclick = () => $('#dlg').close();
-$('#form').addEventListener('submit', ev=>{
-  const f = ev.target, emp = Object.fromEntries(new FormData(f));
-  emp.salary = Number(emp.salary);
-  emp.bonuses = draft.filter(b=>Number(b.amount)>0).map(b=>({...b,amount:Number(b.amount)}));
+$('#form').addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  const emp = Object.fromEntries(new FormData(ev.target));
+  NUM_FIELDS.forEach(k=>emp[k]=num(emp[k]));
+  emp.bonuses = draft.filter(b=>num(b.amount)>0).map(b=>({...b,amount:num(b.amount)}));
+  emp.attendance = adraft.filter(a=>a.date && num(a.qty)>0).map(a=>({...a,qty:num(a.qty)}));
+  emp.reviews = rdraft.filter(r=>r.date && r.score!=='').map(r=>({...r,score:num(r.score)}));
   emp.history = hdraft.filter(h=>h.date && h.to);
   const orig = editing && data.find(e=>e.id===editing);
+  const stop = m => alert(m);
+  if(emp.leave && emp.leave < emp.hire) return stop('離職日不能早於到職日');
+  if(emp.insEnd && emp.insDate && emp.insEnd < emp.insDate) return stop('退保日期不能早於投保日期');
   if(orig && orig.dept!==emp.dept){
     const last = emp.history.slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
-    if(!last || last.to!==emp.dept) emp.history.push({date:new Date().toISOString().slice(0,10),from:orig.dept,to:emp.dept});
+    if(!last || last.to!==emp.dept) emp.history.push({date:today(),from:orig.dept,to:emp.dept});
   }
-  if(emp.leave && emp.leave < emp.hire){ ev.preventDefault(); alert('離職日不能早於到職日'); return; }
-  if(data.some(e=>e.id===emp.id && e.id!==editing)){ ev.preventDefault(); alert('員工編號已存在'); return; }
-  if(editing) data = data.map(e=>e.id===editing ? emp : e); else data.push(emp);
-  save(); render();
+  const btn = ev.submitter; if(btn) btn.disabled = true;
+  try{
+    if(editing){
+      emp.id = editing;
+      if(!(await dbUpsert([emp]))) return;
+      data = data.map(e=>e.id===editing ? emp : e);
+    } else {
+      const created = await dbInsert(emp);
+      if(!created) return;
+      data.push(created);
+    }
+    render(); $('#dlg').close();
+  } finally { if(btn) btn.disabled = false; }
 });
-$('#tbody').onclick = ev=>{
+$('#tbody').onclick = async ev=>{
   const b = ev.target.closest('button'); if(!b) return;
   if(b.dataset.edit) openForm(data.find(e=>e.id===b.dataset.edit));
-  if(b.dataset.del && confirm('確定要刪除此員工資料嗎？')){ data = data.filter(e=>e.id!==b.dataset.del); save(); render(); }
+  if(b.dataset.del && confirm('確定要刪除此員工資料嗎？') && await dbDelete(b.dataset.del)){
+    data = data.filter(e=>e.id!==b.dataset.del); render();
+  }
 };
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{
   const k = th.dataset.k; sortDir = sortKey===k ? -sortDir : 1; sortKey = k; render();
 });
 ['#search','#fCompany','#fDept','#fStatus'].forEach(s=>$(s).addEventListener('input',render));
+
+/* ---------- 匯出 / 資料檔 ---------- */
 $('#exportBtn').onclick = ()=>{
-  const cols=['company','id','name','dept','histText','title','email','phone','hire','leave','salary','regSum','irrSum','annual','status'];
-  const head=['公司','編號','姓名','部門','調動歷史','職稱','Email','電話','到職日','離職日','月薪','定期業務獎金','不定期獎金','總年薪','狀態'];
-  const csv=[head,...data.map(view).map(e=>({...e,histText:e.history.map(h=>`${h.date} ${h.from}→${h.to}`).join('；')})).map(e=>cols.map(c=>`"${String(e[c]??'').replace(/"/g,'""')}"`))].map(r=>r.join(',')).join('\n');
+  const cols=[['公司','company'],['編號','id'],['姓名','name'],['身分證字號','idNo'],['生日','birth'],['性別','gender'],['地址','address'],
+    ['部門','dept'],['調動歷史',e=>e.history.map(h=>`${h.date} ${h.from}→${h.to}`).join('；')],['職稱','title'],['僱用類型','empType'],
+    ['Email','email'],['電話','phone'],['到職日','hire'],['離職日','leave'],['試用期到期','probEnd'],['合約到期','contractEnd'],
+    ['月薪','salary'],['定期業務獎金','regSum'],['不定期獎金','irrSum'],['總年薪','annual'],
+    ['投保薪資','insSalary'],['投保日期','insDate'],['退保日期','insEnd'],['勞保費','laborIns'],['健保費','healthIns'],
+    ['勞退提繳(雇主)','pensionEmployer'],['勞退自提','pensionSelf'],['所得稅','tax'],[`${curMonth()} 實領薪資`,e=>e.payActive?e.netPay:''],
+    ['特休應有','annualEntitle'],['特休已休','annualUsed'],['特休剩餘','annualRemain'],
+    ['累計請假(天)','leaveDays'],['遲到(次)','lateCnt'],['遲到累計(分鐘)','lateMin'],['曠職(天)','absentDays'],
+    ['最近考核分數',e=>e.lastScore<0?'':e.lastScore],['狀態','status']];
+  const cell = v => `"${String(v??'').replace(/"/g,'""')}"`;
+  const csv=[cols.map(c=>cell(c[0])), ...data.map(view).map(e=>cols.map(c=>cell(typeof c[1]==='function'?c[1](e):e[c[1]])))].map(r=>r.join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));
   a.download='employees.csv'; a.click();
 };
+$('#jsonSave').onclick = async ()=>{
+  const text = JSON.stringify(data,null,2);
+  try{
+    if(window.showSaveFilePicker){
+      const h = await showSaveFilePicker({suggestedName:'employees.json',types:[{description:'JSON',accept:{'application/json':['.json']}}]});
+      const w = await h.createWritable(); await w.write(text); await w.close();
+      alert('已儲存資料檔'); return;
+    }
+  }catch(err){ if(err.name==='AbortError') return; }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+  a.download='employees.json'; a.click();
+};
+$('#jsonLoad').onclick = ()=>$('#jsonFile').click();
+$('#jsonFile').onchange = async ev=>{
+  const f = ev.target.files[0]; if(!f) return;
+  try{
+    const arr = JSON.parse(await f.text());
+    if(!Array.isArray(arr)) throw 0;
+    if(!confirm(`將把檔案內的 ${arr.length} 筆資料匯入資料庫（相同員工編號會被覆蓋），確定嗎？`)) return;
+    if(await dbUpsert(arr)) await loadData();
+  }catch{ alert('檔案格式不正確'); }
+  ev.target.value='';
+};
+
+/* ---------- 登入 ---------- */
+async function onSession(session){
+  const on = !!session;
+  $('#logoutBtn').hidden = !on;
+  $('#addBtn').hidden = !on;
+  $('#userLbl').textContent = on ? session.user.email : '';
+  if(on){ $('#loginDlg').close(); await loadData(); }
+  else { data = []; render(); if(!$('#loginDlg').open) $('#loginDlg').showModal(); }
+}
+$('#loginDlg').addEventListener('cancel', ev=>ev.preventDefault());
+$('#loginForm').addEventListener('submit', async ev=>{
+  ev.preventDefault();
+  const f = ev.target.elements;
+  const {error} = await sb.auth.signInWithPassword({email:f.email.value, password:f.password.value});
+  $('#loginErr').textContent = error ? '登入失敗：'+error.message : '';
+});
+$('#logoutBtn').onclick = () => sb.auth.signOut();
+sb.auth.onAuthStateChange((_ev, session)=>{ setTimeout(()=>onSession(session), 0); });
+
+$('#payMonth').value = today().slice(0,7);
 render();
 </script>
 </body>
