@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>員工資料管理系統</title>
+<style>
+  :root{--bg:#f4f6fa;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--primary:#2563eb;--danger:#dc2626;--ok:#16a34a}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Microsoft JhengHei",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+  header{background:var(--primary);color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+  header h1{margin:0;font-size:20px}
+  main{max-width:1100px;margin:20px auto;padding:0 16px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .stat{background:var(--card);border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .stat b{display:block;font-size:24px;margin-top:4px}
+  .stat span{color:var(--muted);font-size:13px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  input,select{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff}
+  .toolbar input{flex:1;min-width:180px}
+  button{padding:8px 14px;border:0;border-radius:6px;background:var(--primary);color:#fff;font:inherit;cursor:pointer}
+  button.sec{background:#e5e7eb;color:var(--text)}
+  button.del{background:var(--danger)}
+  button.sm{padding:4px 10px;font-size:13px}
+  .tablewrap{background:var(--card);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:1400px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+  th{background:#f9fafb;cursor:pointer;user-select:none;white-space:nowrap}
+  tr:hover td{background:#f9fafb}
+  .tag{padding:2px 8px;border-radius:99px;font-size:12px}
+  .t-on{background:#dcfce7;color:var(--ok)}.t-leave{background:#fef3c7;color:#b45309}.t-off{background:#fee2e2;color:var(--danger)}
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  dialog{border:0;border-radius:12px;padding:24px;width:min(480px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  dialog::backdrop{background:rgba(0,0,0,.4)}
+  dialog h2{margin-top:0}
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .form label{display:flex;flex-direction:column;font-size:13px;color:var(--muted);gap:4px}
+  .form .full{grid-column:1/-1}
+  .bonus{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}
+  .brow{display:grid;grid-template-columns:120px 105px 1fr 90px auto;gap:6px;margin-bottom:6px}
+  .brow select{min-width:0;padding:8px 4px}
+  .brow input{min-width:0}
+  .hrow{display:grid;grid-template-columns:130px 1fr 1fr auto;gap:6px;margin-bottom:6px}
+  .hrow input{min-width:0}
+  .sum{grid-column:1/-1;background:#eff6ff;border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);line-height:1.7}
+  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>👥 員工資料管理系統</h1>
+  <button id="addBtn">＋ 新增員工</button>
+</header>
+<main>
+  <div class="stats">
+    <div class="stat"><span>員工總數</span><b id="sTotal">0</b></div>
+    <div class="stat"><span>在職（新娘物語 / 成家婚顧）</span><b id="sActive">0</b></div>
+    <div class="stat"><span>平均月薪</span><b id="sAvg">0</b></div>
+    <div class="stat"><span>部門數</span><b id="sDept">0</b></div>
+  </div>
+  <div class="toolbar">
+    <input id="search" placeholder="搜尋姓名、編號、職稱、Email…">
+    <select id="fCompany"><option value="">兩家公司</option><option>新娘物語</option><option>成家婚顧</option></select>
+    <select id="fDept"><option value="">全部部門</option></select>
+    <select id="fStatus"><option value="">全部狀態</option><option>在職</option><option>留職停薪</option><option>離職</option></select>
+    <button class="sec" id="exportBtn">匯出 CSV</button>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th data-k="company">公司 ⇅</th><th data-k="id">編號 ⇅</th><th data-k="name">姓名 ⇅</th><th data-k="dept">部門 ⇅</th><th data-k="moves">調動歷史 ⇅</th>
+        <th data-k="title">職稱 ⇅</th><th data-k="hire">到職日 ⇅</th><th data-k="leave">離職日 ⇅</th>
+        <th data-k="salary">月薪 ⇅</th><th data-k="regSum">定期業務獎金 ⇅</th><th data-k="irrSum">不定期獎金 ⇅</th><th data-k="annual">總年薪 ⇅</th>
+        <th data-k="status">狀態 ⇅</th><th>操作</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>沒有符合條件的員工</div>
+  </div>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog" id="form">
+    <h2 id="dlgTitle">新增員工</h2>
+    <div class="form">
+      <label class="full">所屬公司
+        <select name="company"><option>新娘物語</option><option>成家婚顧</option></select>
+      </label>
+      <label>員工編號<input name="id" required></label>
+      <label>姓名<input name="name" required></label>
+      <label>部門<input name="dept" list="deptList" required></label>
+      <label>職稱<input name="title" required></label>
+      <label>Email<input name="email" type="email"></label>
+      <label>電話<input name="phone"></label>
+      <label>到職日<input name="hire" type="date" required></label>
+      <label>月薪 (NT$)<input name="salary" type="number" min="0" required></label>
+      <label>離職日<input name="leave" type="date"></label>
+      <label>狀態
+        <select name="status"><option>在職</option><option>留職停薪</option><option>離職</option></select>
+      </label>
+      <div class="bonus">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <b style="font-size:14px">獎金紀錄（在職期間）</b>
+          <button type="button" class="sm sec" id="addBonus">＋ 新增獎金</button>
+        </div>
+        <div id="bonusList"></div>
+      </div>
+      <div class="bonus">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <b style="font-size:14px">部門調動歷史</b>
+          <button type="button" class="sm sec" id="addMove">＋ 新增調動</button>
+        </div>
+        <div id="moveList"></div>
+        <div style="font-size:12px;color:var(--muted)">修改上方「部門」欄位並儲存時，系統會自動補一筆調動紀錄。</div>
+      </div>
+      <div class="sum" id="sumBox"></div>
+    </div>
+    <datalist id="deptList"></datalist>
+    <div class="actions">
+      <button type="button" class="sec" id="cancel">取消</button>
+      <button type="submit">儲存</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const KEY = 'hr_employees_v1';
+const seed = [
+  {company:'新娘物語',id:'E001',name:'王小明',dept:'工程部',title:'資深工程師',email:'ming@example.com',phone:'0912-345-678',hire:'2019-03-01',salary:85000,status:'在職',history:[{date:'2021-04-01',from:'業務部',to:'工程部'}]},
+  {company:'成家婚顧',id:'E002',name:'李美玲',dept:'人資部',title:'人資經理',email:'meiling@example.com',phone:'0922-111-222',hire:'2018-07-15',salary:92000,status:'在職'},
+  {company:'新娘物語',id:'E003',name:'陳志豪',dept:'業務部',title:'業務專員',email:'chihao@example.com',phone:'0933-222-333',hire:'2021-01-10',salary:52000,status:'在職',bonuses:[{date:'2025-03-31',type:'定期業務獎金',name:'Q1 業績獎金',amount:30000},{date:'2025-06-30',type:'定期業務獎金',name:'Q2 業績獎金',amount:36000},{date:'2025-02-10',type:'不定期獎金',name:'專案獎金',amount:20000}]},
+  {company:'成家婚顧',id:'E004',name:'林雅婷',dept:'財務部',title:'會計',email:'yating@example.com',phone:'0955-666-777',hire:'2020-05-20',salary:58000,status:'留職停薪'},
+  {company:'成家婚顧',id:'E005',name:'張家豪',dept:'工程部',title:'前端工程師',email:'chiahao@example.com',phone:'0966-888-999',hire:'2022-09-01',leave:'2025-06-30',salary:70000,status:'離職',bonuses:[{date:'2023-01-20',type:'不定期獎金',name:'年終獎金',amount:70000},{date:'2024-01-20',type:'不定期獎金',name:'年終獎金',amount:105000}]}
+];
+let data = load(), sortKey='id', sortDir=1, editing=null, draft=[], hdraft=[];
+const $ = s => document.querySelector(s);
+const bonusOf = e => (e.bonuses||[]).reduce((a,b)=>a+(Number(b.amount)||0),0);
+const sumType = (list,reg) => (list||[]).filter(b=>(b.type==='定期業務獎金')===reg).reduce((a,b)=>a+(Number(b.amount)||0),0);
+const view = e => ({...e, company:e.company||'未指定', regSum:sumType(e.bonuses,true), irrSum:sumType(e.bonuses,false), history:(e.history||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)), moves:(e.history||[]).length, leave:e.leave||'', bonusSum:bonusOf(e), annual:Number(e.salary)*12+bonusOf(e)});
+const money = n => Number(n).toLocaleString();
+
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || seed }catch{ return seed } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(data)) }catch{} }
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tagCls = {'在職':'t-on','留職停薪':'t-leave','離職':'t-off'};
+
+function render(){
+  const q = $('#search').value.trim().toLowerCase(), d = $('#fDept').value, s = $('#fStatus').value, c = $('#fCompany').value;
+  let rows = data.map(view).filter(e =>
+    (!c || e.company===c) && (!d || e.dept===d) && (!s || e.status===s) &&
+    (!q || [e.id,e.name,e.title,e.email,e.dept].some(v => String(v||'').toLowerCase().includes(q))));
+  rows.sort((a,b)=>{
+    const x=a[sortKey], y=b[sortKey];
+    return (typeof x==='number' ? x-y : String(x).localeCompare(String(y),'zh-Hant')) * sortDir;
+  });
+  $('#tbody').innerHTML = rows.map(e=>`<tr>
+    <td>${esc(e.company)}</td><td>${esc(e.id)}</td><td>${esc(e.name)}</td><td>${esc(e.dept)}</td>
+    <td style="font-size:12px;color:var(--muted)">${e.history.length ? e.history.map(h=>`${esc(h.date)} ${esc(h.from)}→${esc(h.to)}`).join('<br>') : '—'}</td>
+    <td>${esc(e.title)}</td>
+    <td>${esc(e.hire)}</td><td>${esc(e.leave)||'—'}</td><td>${money(e.salary)}</td>
+    <td>${money(e.regSum)}</td><td>${money(e.irrSum)}</td><td><b>${money(e.annual)}</b></td>
+    <td><span class="tag ${tagCls[e.status]}">${esc(e.status)}</span></td>
+    <td><button class="sm" data-edit="${esc(e.id)}">編輯</button>
+        <button class="sm del" data-del="${esc(e.id)}">刪除</button></td></tr>`).join('');
+  $('#empty').hidden = rows.length>0;
+
+  const depts = [...new Set(data.map(e=>e.dept))].sort();
+  const cur = $('#fDept').value;
+  $('#fDept').innerHTML = '<option value="">全部部門</option>' + depts.map(x=>`<option ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
+  $('#deptList').innerHTML = depts.map(x=>`<option value="${esc(x)}">`).join('');
+
+  const active = data.filter(e=>e.status==='在職');
+  $('#sTotal').textContent = data.length;
+  const n = c => active.filter(e=>e.company===c).length;
+  $('#sActive').textContent = `${active.length}（${n('新娘物語')} / ${n('成家婚顧')}）`;
+  $('#sAvg').textContent = active.length ? 'NT$ '+Math.round(active.reduce((a,e)=>a+Number(e.salary),0)/active.length).toLocaleString() : '—';
+  $('#sDept').textContent = depts.length;
+}
+
+function openForm(emp){
+  editing = emp ? emp.id : null;
+  $('#dlgTitle').textContent = emp ? '編輯員工' : '新增員工';
+  const f = $('#form'); f.reset();
+  if(emp){ for(const k in emp) if(f.elements[k]) f.elements[k].value = emp[k]; }
+  else f.elements.hire.value = new Date().toISOString().slice(0,10);
+  draft = emp ? (emp.bonuses||[]).map(b=>({...b})) : [];
+  hdraft = emp ? (emp.history||[]).map(h=>({...h})) : [];
+  renderBonus(); renderMoves();
+  $('#dlg').showModal();
+}
+function renderMoves(){
+  $('#moveList').innerHTML = hdraft.map((h,i)=>`<div class="hrow">
+    <input type="date" value="${esc(h.date)}" data-i="${i}" data-f="date">
+    <input placeholder="原部門" list="deptList" value="${esc(h.from)}" data-i="${i}" data-f="from">
+    <input placeholder="新部門" list="deptList" value="${esc(h.to)}" data-i="${i}" data-f="to">
+    <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
+}
+$('#addMove').onclick = ()=>{ hdraft.push({date:new Date().toISOString().slice(0,10),from:'',to:''}); renderMoves(); };
+$('#moveList').addEventListener('input', ev=>{ const t=ev.target; if(t.dataset.i!=null) hdraft[t.dataset.i][t.dataset.f]=t.value; });
+$('#moveList').addEventListener('click', ev=>{
+  const b=ev.target.closest('[data-rm]'); if(!b) return;
+  hdraft.splice(+b.dataset.rm,1); renderMoves();
+});
+function renderBonus(){
+  $('#bonusList').innerHTML = draft.map((b,i)=>`<div class="brow">
+    <input type="date" value="${esc(b.date)}" data-i="${i}" data-f="date">
+    <select data-i="${i}" data-f="type"><option ${b.type==='定期業務獎金'?'selected':''}>定期業務獎金</option><option ${b.type!=='定期業務獎金'?'selected':''}>不定期獎金</option></select>
+    <input placeholder="名稱（如年終、季獎）" value="${esc(b.name)}" data-i="${i}" data-f="name">
+    <input type="number" min="0" placeholder="金額" value="${esc(b.amount)}" data-i="${i}" data-f="amount">
+    <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
+  updateSum();
+}
+function updateSum(){
+  const f = $('#form').elements, salary = Number(f.salary.value)||0;
+  const reg = sumType(draft,true), irr = sumType(draft,false), bonus = reg+irr;
+  $('#sumBox').innerHTML = `年薪基本 (月薪×12)：NT$ ${money(salary*12)}<br>定期業務獎金：NT$ ${money(reg)}<br>不定期獎金：NT$ ${money(irr)}<br><b>最終總年薪：NT$ ${money(salary*12+bonus)}</b>`;
+}
+$('#addBonus').onclick = ()=>{ draft.push({date:new Date().toISOString().slice(0,10),type:'不定期獎金',name:'',amount:''}); renderBonus(); };
+$('#bonusList').addEventListener('input', ev=>{
+  const t=ev.target; if(t.dataset.i==null) return;
+  draft[t.dataset.i][t.dataset.f]=t.value; updateSum();
+});
+$('#bonusList').addEventListener('click', ev=>{
+  const b=ev.target.closest('[data-rm]'); if(!b) return;
+  draft.splice(+b.dataset.rm,1); renderBonus();
+});
+$('#form').elements.salary.addEventListener('input', updateSum);
+
+$('#addBtn').onclick = () => openForm();
+$('#cancel').onclick = () => $('#dlg').close();
+$('#form').addEventListener('submit', ev=>{
+  const f = ev.target, emp = Object.fromEntries(new FormData(f));
+  emp.salary = Number(emp.salary);
+  emp.bonuses = draft.filter(b=>Number(b.amount)>0).map(b=>({...b,amount:Number(b.amount)}));
+  emp.history = hdraft.filter(h=>h.date && h.to);
+  const orig = editing && data.find(e=>e.id===editing);
+  if(orig && orig.dept!==emp.dept){
+    const last = emp.history.slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+    if(!last || last.to!==emp.dept) emp.history.push({date:new Date().toISOString().slice(0,10),from:orig.dept,to:emp.dept});
+  }
+  if(emp.leave && emp.leave < emp.hire){ ev.preventDefault(); alert('離職日不能早於到職日'); return; }
+  if(data.some(e=>e.id===emp.id && e.id!==editing)){ ev.preventDefault(); alert('員工編號已存在'); return; }
+  if(editing) data = data.map(e=>e.id===editing ? emp : e); else data.push(emp);
+  save(); render();
+});
+$('#tbody').onclick = ev=>{
+  const b = ev.target.closest('button'); if(!b) return;
+  if(b.dataset.edit) openForm(data.find(e=>e.id===b.dataset.edit));
+  if(b.dataset.del && confirm('確定要刪除此員工資料嗎？')){ data = data.filter(e=>e.id!==b.dataset.del); save(); render(); }
+};
+document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{
+  const k = th.dataset.k; sortDir = sortKey===k ? -sortDir : 1; sortKey = k; render();
+});
+['#search','#fCompany','#fDept','#fStatus'].forEach(s=>$(s).addEventListener('input',render));
+$('#exportBtn').onclick = ()=>{
+  const cols=['company','id','name','dept','histText','title','email','phone','hire','leave','salary','regSum','irrSum','annual','status'];
+  const head=['公司','編號','姓名','部門','調動歷史','職稱','Email','電話','到職日','離職日','月薪','定期業務獎金','不定期獎金','總年薪','狀態'];
+  const csv=[head,...data.map(view).map(e=>({...e,histText:e.history.map(h=>`${h.date} ${h.from}→${h.to}`).join('；')})).map(e=>cols.map(c=>`"${String(e[c]??'').replace(/"/g,'""')}"`))].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));
+  a.download='employees.csv'; a.click();
+};
+render();
+</script>
+</body>
+</html>
