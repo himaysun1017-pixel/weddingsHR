@@ -61,6 +61,7 @@
   .hrow{grid-template-columns:130px 1fr 1fr auto}
   .arow{grid-template-columns:120px 90px 80px 1fr auto}
   .rrow{grid-template-columns:120px 70px 1fr auto auto;margin-bottom:2px}
+  .srow{grid-template-columns:120px 110px 110px 1fr auto}
   .hint{font-size:12px;color:var(--muted);margin-bottom:8px}
   .note{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
   .sum{background:#eff6ff;border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);line-height:1.8;margin-top:10px}
@@ -132,9 +133,10 @@
       <div class="tabs" id="tabs">
         <button type="button" data-tab="0" class="on">基本與任職</button>
         <button type="button" data-tab="1">勞健保與薪資</button>
-        <button type="button" data-tab="2">獎金與考核</button>
-        <button type="button" data-tab="3">出勤與特休</button>
-        <button type="button" data-tab="4">調動歷史</button>
+        <button type="button" data-tab="2">調薪紀錄</button>
+        <button type="button" data-tab="3">獎金與考核</button>
+        <button type="button" data-tab="4">出勤與特休</button>
+        <button type="button" data-tab="5">調動歷史</button>
       </div>
     </div>
     <div class="dbody">
@@ -183,8 +185,15 @@
         </div>
       </div>
 
-      <!-- 2 獎金與考核 -->
+      <!-- 2 調薪紀錄 -->
       <div class="pane" data-pane="2">
+        <div class="sec-t"><b>調薪紀錄</b><button type="button" class="sm sec" id="addSalary">＋ 新增調薪</button></div>
+        <div id="salaryList"></div>
+        <div class="note">生效日期、調整前月薪、調整後月薪、原因（如年度調薪、升遷、績效調整）。變更「基本與任職」的月薪並儲存時，系統會自動補一筆調薪紀錄。</div>
+      </div>
+
+      <!-- 3 獎金與考核 -->
+      <div class="pane" data-pane="3">
         <div class="sec-t"><b>獎金紀錄（在職期間）</b><button type="button" class="sm sec" id="addBonus">＋ 新增獎金</button></div>
         <div id="bonusList"></div>
         <div class="sum" id="sumBox"></div>
@@ -193,16 +202,16 @@
         <div class="note">年終獎金建議規則：90 分以上 2 個月、80–89 分 1.5 個月、70–79 分 1 個月、60–69 分 0.5 個月、未滿 60 分 0。按「帶入年終」會把金額加入上方獎金紀錄（不定期獎金）。</div>
       </div>
 
-      <!-- 3 出勤與特休 -->
-      <div class="pane" data-pane="3">
+      <!-- 4 出勤與特休 -->
+      <div class="pane" data-pane="4">
         <div class="sec-t"><b>出勤紀錄</b><button type="button" class="sm sec" id="addAtt">＋ 新增紀錄</button></div>
         <div id="attList"></div>
         <div class="note">特休、事假、病假、曠職填「天數」（可填 0.5）；遲到填「分鐘」，每筆算 1 次。</div>
         <div class="sum" id="attSum"></div>
       </div>
 
-      <!-- 4 調動歷史 -->
-      <div class="pane" data-pane="4">
+      <!-- 5 調動歷史 -->
+      <div class="pane" data-pane="5">
         <div class="sec-t"><b>部門調動歷史</b><button type="button" class="sm sec" id="addMove">＋ 新增調動</button></div>
         <div id="moveList"></div>
         <div class="note">修改「基本與任職」的部門並儲存時，系統會自動補一筆調動紀錄。</div>
@@ -237,7 +246,7 @@ const seed = [
   {company:'成家婚顧',id:'E004',name:'林雅婷',dept:'財務部',title:'會計',empType:'約聘',email:'yating@example.com',phone:'0955-666-777',hire:'2020-05-20',salary:58000,status:'留職停薪',contractEnd:'2026-12-31'},
   {company:'成家婚顧',id:'E005',name:'張家豪',dept:'工程部',title:'前端工程師',empType:'正職',email:'chiahao@example.com',phone:'0966-888-999',hire:'2022-09-01',leave:'2025-06-30',insEnd:'2025-06-30',salary:70000,status:'離職',bonuses:[{date:'2023-01-20',type:'不定期獎金',name:'年終獎金',amount:70000},{date:'2024-01-20',type:'不定期獎金',name:'年終獎金',amount:105000}]}
 ];
-let data = [], sortKey='id', sortDir=1, editing=null, draft=[], hdraft=[], adraft=[], rdraft=[];
+let data = [], sortKey='id', sortDir=1, editing=null, draft=[], hdraft=[], adraft=[], rdraft=[], sdraft=[];
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = n => Math.round(Number(n)||0).toLocaleString();
@@ -249,9 +258,10 @@ const num = v => Number(v)||0;
 
 /* ---------- Supabase 資料存取 ---------- */
 const COLS = {idNo:'id_no',empType:'emp_type',probEnd:'prob_end',contractEnd:'contract_end',insSalary:'ins_salary',
-  insDate:'ins_date',insEnd:'ins_end',laborIns:'labor_ins',healthIns:'health_ins',pensionEmployer:'pension_employer',pensionSelf:'pension_self'};
+  insDate:'ins_date',insEnd:'ins_end',laborIns:'labor_ins',healthIns:'health_ins',pensionEmployer:'pension_employer',pensionSelf:'pension_self',
+  salaryHistory:'salary_history'};
 const DATE_FIELDS = ['birth','hire','leave','probEnd','contractEnd','insDate','insEnd'];
-const JSON_FIELDS = ['bonuses','attendance','reviews','history'];
+const JSON_FIELDS = ['bonuses','attendance','reviews','history','salaryHistory'];
 const KEYS = ['id','company','name','idNo','birth','gender','phone','address','email','dept','title','empType','status','hire','leave',
   'probEnd','contractEnd','salary','insSalary','dependents','insDate','insEnd','laborIns','healthIns','pensionEmployer','pensionSelf','tax',...JSON_FIELDS];
 function toRow(e){
@@ -471,6 +481,14 @@ function renderBonus(){
     <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
   refreshAll();
 }
+function renderSalary(){
+  $('#salaryList').innerHTML = sdraft.map((s,i)=>`<div class="row srow">
+    <input type="date" value="${esc(s.date)}" data-i="${i}" data-f="date">
+    <input type="number" min="0" placeholder="調整前月薪" value="${esc(s.from)}" data-i="${i}" data-f="from">
+    <input type="number" min="0" placeholder="調整後月薪" value="${esc(s.to)}" data-i="${i}" data-f="to">
+    <input placeholder="原因（如年度調薪、升遷）" value="${esc(s.reason)}" data-i="${i}" data-f="reason">
+    <button type="button" class="sm del" data-rm="${i}">✕</button></div>`).join('');
+}
 function renderMoves(){
   $('#moveList').innerHTML = hdraft.map((h,i)=>`<div class="row hrow">
     <input type="date" value="${esc(h.date)}" data-i="${i}" data-f="date">
@@ -513,6 +531,7 @@ function bindList(sel, get, rerender, after){
   });
 }
 bindList('#bonusList', ()=>draft, renderBonus);
+bindList('#salaryList', ()=>sdraft, renderSalary);
 bindList('#moveList', ()=>hdraft, renderMoves);
 bindList('#attList', ()=>adraft, renderAtt, t=>{ if(t.dataset.f==='type') renderAtt(); });
 bindList('#revList', ()=>rdraft, ()=>{ renderRev(); }, t=>{ if(t.dataset.f==='score') $('#hint'+t.dataset.i).textContent=hintText(t.value); });
@@ -527,6 +546,7 @@ $('#revList').addEventListener('click', ev=>{
   alert(`已帶入不定期獎金「${name}」NT$ ${money(amt)}，可在上方獎金紀錄調整日期與金額。`);
 });
 $('#addBonus').onclick = ()=>{ draft.push({date:today(),type:'不定期獎金',name:'',amount:''}); renderBonus(); };
+$('#addSalary').onclick = ()=>{ sdraft.push({date:today(),from:F().salary.value,to:'',reason:''}); renderSalary(); };
 $('#addMove').onclick = ()=>{ hdraft.push({date:today(),from:'',to:''}); renderMoves(); };
 $('#addAtt').onclick = ()=>{ adraft.push({date:today(),type:'事假',qty:'',note:''}); renderAtt(); };
 $('#addRev').onclick = ()=>{ rdraft.push({date:today(),score:'',comment:''}); renderRev(); };
@@ -547,9 +567,9 @@ function openForm(emp){
   if(emp){ for(const k in emp) if(f.elements[k] && typeof emp[k]!=='object') f.elements[k].value = emp[k]; }
   else f.elements.hire.value = today();
   const cp = a => (a||[]).map(x=>({...x}));
-  draft=cp(emp&&emp.bonuses); hdraft=cp(emp&&emp.history); rdraft=cp(emp&&emp.reviews);
+  draft=cp(emp&&emp.bonuses); hdraft=cp(emp&&emp.history); rdraft=cp(emp&&emp.reviews); sdraft=cp(emp&&emp.salaryHistory);
   adraft=cp(emp&&emp.attendance).map(a=>({...a,type:normType(a.type)}));
-  renderBonus(); renderMoves(); renderAtt(); renderRev();
+  renderBonus(); renderSalary(); renderMoves(); renderAtt(); renderRev();
   $('#dlg').showModal();
 }
 
@@ -563,6 +583,7 @@ $('#form').addEventListener('submit', async ev=>{
   emp.attendance = adraft.filter(a=>a.date && num(a.qty)>0).map(a=>({...a,qty:num(a.qty)}));
   emp.reviews = rdraft.filter(r=>r.date && r.score!=='').map(r=>({...r,score:num(r.score)}));
   emp.history = hdraft.filter(h=>h.date && h.to);
+  emp.salaryHistory = sdraft.filter(s=>s.date && num(s.to)>0).map(s=>({...s,from:num(s.from),to:num(s.to)}));
   const orig = editing && data.find(e=>e.id===editing);
   const stop = m => alert(m);
   if(emp.leave && emp.leave < emp.hire) return stop('離職日不能早於到職日');
@@ -570,6 +591,10 @@ $('#form').addEventListener('submit', async ev=>{
   if(orig && orig.dept!==emp.dept){
     const last = emp.history.slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
     if(!last || last.to!==emp.dept) emp.history.push({date:today(),from:orig.dept,to:emp.dept});
+  }
+  if(orig && num(orig.salary)!==num(emp.salary)){
+    const last = emp.salaryHistory.slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+    if(!last || num(last.to)!==num(emp.salary)) emp.salaryHistory.push({date:today(),from:num(orig.salary),to:num(emp.salary),reason:''});
   }
   const btn = ev.submitter; if(btn) btn.disabled = true;
   try{
@@ -600,7 +625,9 @@ document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{
 /* ---------- 匯出 / 資料檔 ---------- */
 $('#exportBtn').onclick = ()=>{
   const cols=[['公司','company'],['編號','id'],['姓名','name'],['身分證字號','idNo'],['生日','birth'],['性別','gender'],['地址','address'],
-    ['部門','dept'],['調動歷史',e=>e.history.map(h=>`${h.date} ${h.from}→${h.to}`).join('；')],['職稱','title'],['僱用類型','empType'],
+    ['部門','dept'],['調動歷史',e=>e.history.map(h=>`${h.date} ${h.from}→${h.to}`).join('；')],
+    ['調薪紀錄',e=>(e.salaryHistory||[]).map(s=>`${s.date} ${s.from}→${s.to}${s.reason?'('+s.reason+')':''}`).join('；')],
+    ['職稱','title'],['僱用類型','empType'],
     ['Email','email'],['電話','phone'],['到職日','hire'],['離職日','leave'],['試用期到期','probEnd'],['合約到期','contractEnd'],
     ['月薪','salary'],['定期業務獎金','regSum'],['不定期獎金','irrSum'],['總年薪','annual'],
     ['投保薪資','insSalary'],['投保日期','insDate'],['退保日期','insEnd'],['勞保費','laborIns'],['健保費','healthIns'],
